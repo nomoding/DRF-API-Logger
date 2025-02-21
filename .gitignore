@@ -1,2 +1,5 @@
 drf_api_logger.egg-info/
 .idea/
+venv
+__pycache__/
+*.sqlite3

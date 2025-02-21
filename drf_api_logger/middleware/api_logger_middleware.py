@@ -69,6 +69,12 @@ class APILoggerMiddleware:
             mod = importlib.import_module(mod_name)
             self.tracing_func_name = getattr(mod, func_name)
 
+        self.pre_queue_func_name = None
+        if hasattr(settings, 'DRF_API_LOGGER_PRE_QUEUE_FUNC'):
+            mod_name, func_name = settings.DRF_API_LOGGER_PRE_QUEUE_FUNC.rsplit('.', 1)
+            mod = importlib.import_module(mod_name)
+            self.pre_queue_func_name = getattr(mod, func_name)
+
         self.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE = -1
         if hasattr(settings, 'DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE'):
             if type(settings.DRF_API_LOGGER_MAX_REQUEST_BODY_SIZE) is int:
@@ -195,6 +201,8 @@ class APILoggerMiddleware:
                 else:
                     api = request.build_absolute_uri()
 
+                external_lookup_id = str(uuid.uuid4())
+
                 data = dict(
                     api=mask_sensitive_data(api, mask_api_parameters=True),
                     headers=mask_sensitive_data(headers),
@@ -204,21 +212,28 @@ class APILoggerMiddleware:
                     response=mask_sensitive_data(response_body),
                     status_code=response.status_code,
                     execution_time=time.time() - start_time,
-                    added_on=timezone.now()
+                    added_on=timezone.now(),
+                    external_lookup_id=external_lookup_id
                 )
+
                 if self.DRF_API_LOGGER_DATABASE and LOGGER_THREAD:
                     d = data.copy()
                     d['headers'] = json.dumps(d['headers'], indent=4, ensure_ascii=False) if d.get('headers') else ''
                     if request_data:
                         d['body'] = json.dumps(d['body'], indent=4, ensure_ascii=False) if d.get('body') else ''
                     d['response'] = json.dumps(d['response'], indent=4, ensure_ascii=False) if d.get('response') else ''
+
+
+                    if self.pre_queue_func_name:
+                        d = self.pre_queue_func_name(payload={**d}, request=request)
+                   
                     LOGGER_THREAD.put_log_data(data=d)
                 if self.DRF_API_LOGGER_SIGNAL:
                     if tracing_id:
                         data.update({
                             'tracing_id': tracing_id
                         })
-                    API_LOGGER_SIGNAL.listen(**data)
+                    API_LOGGER_SIGNAL.listen(request=request, **data)
             else:
                 return response
         else:

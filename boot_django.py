@@ -9,6 +9,7 @@ def boot_django():
     settings.configure(
         BASE_DIR=BASE_DIR,
         DEBUG=True,
+        DRF_API_LOGGER_DATABASE=os.getenv("DRF_API_LOGGER_DATABASE", False),
         DATABASES={
             "default": {
                 "ENGINE": "django.db.backends.sqlite3",

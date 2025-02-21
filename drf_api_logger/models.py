@@ -31,7 +31,15 @@ if database_log_enabled():
         execution_time = models.DecimalField(decimal_places=5, max_digits=8,
                                              help_text='Server execution time (Not complete response time.)')
 
+        external_lookup_id = models.CharField(max_length=512, default=None, null=True, blank=True)
+        business_id = models.CharField(max_length=512, default=None, null=True, blank=True, db_index=True)
+        user_id = models.CharField(max_length=512, default=None, null=True, blank=True, db_index=True)
+        apikey_id = models.CharField(max_length=512, default=None, null=True, blank=True, db_index=True)
+        data = models.JSONField(default=dict, blank=True)
+
         def __str__(self):
+            if self.business_id:
+                return f"[BID:{str(self.business_id)}] self.api"
             return self.api
 
         class Meta:
